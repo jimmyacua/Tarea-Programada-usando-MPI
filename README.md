@@ -47,8 +47,8 @@ reciben desde el satélite, vienen ya preprocesados y codificados de la siguient
  a. Desplegar de manera clara la matriz que se generó (cuando su dimensión tenga sentido) 
  b. Desplegar información general del bosque y resumen del resultado del análisis: 
   - su área total
-  - # de cuadrantes
-  - # de hectáreas por cuadrante 
+  - Numero de cuadrantes
+  - Numero de hectáreas por cuadrante 
   - Total de área del bosque(en número de hectáreas )
   - % delárea a reforestar.
   - si todo el bosque está apto para reforestación (y el costo sería de 0) ó
@@ -56,7 +56,7 @@ reciben desde el satélite, vienen ya preprocesados y codificados de la siguient
   - si no se obtiene beneficio enelcosto
   
   c. Por cada cuadrante, enumerados en orden de izqa derecha y de arriba hacia abajo 0, 1, 2, 3, 4,...:
-    - % del área del cuadrante-que implica unagran inversiónpara  reforestar 
-      - con alto costopara reforestar
-      -con costo razonable
-    - Si se debe reforestar o no. Justificado muy claramente con los cálculos obtenidosanteriores.
+  - % del área del cuadrante
+   -que implica unagran inversiónpara  reforestar - con alto costopara reforestar
+   -con costo razonable
+  - Si se debe reforestar o no. Justificado muy claramente con los cálculos obtenidos anteriores.
