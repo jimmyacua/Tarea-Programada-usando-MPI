@@ -44,11 +44,12 @@ void fillMatrix(int **matriz, int tamano){
 int main(int argc, char **argv) {
     int p = 0, myid, numprocs;
     //double startwtime, endwtime;
-    int namelen;
+    int namelen, tamano;
     char processor_name[MPI_MAX_PROCESSOR_NAME];
     int stripSize;
     int **matriz;
-    int *filaLocal, *data;
+    int **filaLocal, *data, *stripdata;
+    MPI_Datatype strip;
 
     /*  Se inicia el trabajo con MPI */
     MPI_Init(&argc, &argv);
@@ -68,7 +69,7 @@ int main(int argc, char **argv) {
         cin >> p;
 
         int maxdiv = getMaxDiv(p);
-        int tamano = p*maxdiv;
+        tamano = p*maxdiv;
 
         stripSize = tamano/p;
 
@@ -84,7 +85,7 @@ int main(int argc, char **argv) {
             matriz[i] = &(data[i*tamano]);
         }
 
-        cout << "genera la matriz..." << endl;
+        cout << "Generando la matriz..." << endl;
 
         fillMatrix(matriz, tamano);
 
@@ -96,8 +97,36 @@ int main(int argc, char **argv) {
             cout << endl;
         }
     }
-    MPI_Scatter(matriz, stripSize, MPI_INT, filaLocal, stripSize, MPI_INT, 0, MPI_COMM_WORLD);
 
+    //broadcasting el tamaño de los lados y el tamaño de cada vector
+    MPI_Bcast(&tamano, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&stripSize, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    MPI_Type_vector(stripSize, tamano, tamano, MPI_INT, &strip);
+    MPI_Type_commit(&strip);
+
+    stripdata = (int *)malloc(sizeof(int)*stripSize*tamano);
+    filaLocal = (int **)malloc(sizeof(int*)*stripSize);
+    for(int i =0; i<stripSize; i++){
+        filaLocal[i] = &(stripdata[i*tamano]);
+    }
+    MPI_Scatter(data, 1, strip, &(filaLocal[0][0]), 1, strip, 0, MPI_COMM_WORLD);
+
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    for(int i = 0; i < stripSize; i++) {
+        if(i == 0) {
+            cout << "rank = " << myid << endl;
+        }
+        for(int j = 0; j < tamano; j++) {
+            cout << filaLocal[i][j] << " ";
+        }
+        printf("\n");
+    }
+
+    /*if(myid != 0){
+        cout << "Soy el proceso: " << myid << " y este es el tamaño: " << tamano << endl;
+    }*/
     MPI_Finalize();
     return 0;
 }
