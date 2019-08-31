@@ -57,6 +57,7 @@ reciben desde el satélite, vienen ya preprocesados y codificados de la siguient
   
   c. Por cada cuadrante, enumerados en orden de izqa derecha y de arriba hacia abajo 0, 1, 2, 3, 4,...:
   - % del área del cuadrante
-   -que implica unagran inversiónpara  reforestar - con alto costopara reforestar
-   -con costo razonable
+   - que implica unagran inversiónpara  reforestar
+   - con alto costo para reforestar
+   - con costo razonable
   - Si se debe reforestar o no. Justificado muy claramente con los cálculos obtenidos anteriores.
