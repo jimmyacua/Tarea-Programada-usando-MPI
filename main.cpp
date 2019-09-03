@@ -82,9 +82,10 @@ int main(int argc, char **argv) {
     char processor_name[MPI_MAX_PROCESSOR_NAME];
     int stripSize;
     int **matriz;
-    int **filaLocal, *data, *stripdata;
+    int **filaLocal, *data, *stripdata, *datalocal;
     MPI_Datatype strip;
     int numHectareas;
+    int **datosLocales;
 
     /*  Se inicia el trabajo con MPI */
     MPI_Init(&argc, &argv);
@@ -100,9 +101,7 @@ int main(int argc, char **argv) {
     MPI_Get_processor_name(processor_name, &namelen);
 
     if (myid == 0) {
-        cout << "Digite el numero de procesos" << endl;
-        cin >> p;
-
+        p = numprocs;
         int maxdiv = getMaxDiv(p);
         tamano = p * maxdiv;
 
@@ -133,6 +132,34 @@ int main(int argc, char **argv) {
             }
             cout << endl;
         }
+        /*
+         * data = (int *) malloc(sizeof(int) * tamano * tamano);
+         * matriz = (int **) malloc(sizeof(int *) * tamano);
+         * for (int i = 0; i < tamano; i++) {
+         *      matriz[i] = &(data[i * tamano]);
+         * }
+         */
+
+        int numCuad = getCuadrantes(maxdiv);
+
+        //genera la matriz local
+        datalocal = (int *) malloc(sizeof(int) * numCuad * 3); //filas * columnas
+        datosLocales = (int **) malloc(sizeof(int *) * numCuad);
+        for (int i = 0; i < numCuad; i++) {
+            datosLocales[i] = &(datalocal[i * 3]);
+        }
+
+        for(int i=0; i < numCuad; i++){
+            for(int j = 0; j<3; j++){
+                datosLocales[i][j] = 0;
+            }
+        }
+        /*for(int i=0; i<numCuad; i++){
+            for(int j = 0; j<3; j++){
+                cout << datosLocales[i][j] << " ";
+            }
+            cout << endl;
+        }*/
     }
 
     //broadcasting el tamaño de los lados y el tamaño de cada vector
@@ -162,14 +189,6 @@ int main(int argc, char **argv) {
     }*/
 
     if (myid == 0) {
-        /*cout << "el del cero: " << endl;
-        for(int i =0; i<stripSize; i++){
-            for(int j = 0; j < tamano; j++) {
-                cout << filaLocal[i][j] << " ";
-            }
-            cout << endl;
-        }*/
-
         //mientras encuentro la formula de los cuadrantes
         for (int i = 0; i < tamano; i++) {
             for (int j = 0; j < tamano; j++) {
@@ -198,6 +217,58 @@ int main(int argc, char **argv) {
         }
 
     }
+
+    /*if(myid == 1){
+        for(int i = 0; i < stripSize; i++) {
+            for(int j = 0; j < tamano; j++) {
+                cout << filaLocal[i][j] << " ";
+            }
+            printf("\n");
+        }
+    }*/
+
+    int x = getMaxDiv(p);
+    int c = myid*x;
+    int c1 = ((p*x*p*x)/p)/((p*x*p*x)/x);
+    c = c*c1*x;
+
+    for(int i = 0; i< stripSize; i++){
+        for(int j=0; j < tamano; j++){
+            int y = 0;
+            if(filaLocal[i][j] == 0){
+                y = c +((x*j)/(p*x));
+                datosLocales[y][0] +=1;
+            } else if(filaLocal[i][j] == 1){
+                y = c +((x*j)/(p*x));
+                datosLocales[y][1] +=1;
+            } else if(filaLocal[i][j] == 2){
+                y = c +((x*j)/(p*x));
+                datosLocales[y][2] +=1;
+            }
+        }
+    }
+
+    cout << "ANtes de imprimir" << endl;
+
+    for(int i=0; i<getCuadrantes(x); i++){
+        for(int j = 0; j<3; j++){
+            cout << datosLocales[i][j] << " ";
+        }
+        cout << endl;
+    }
+
+
+
+
+    /*
+     * Formula:
+     * p: procesos, x: max com div
+     *  int c = myid*(((p*x*p*x)/p)/((p*x*p*x)/x))*x
+     *  c = c*3;
+     *  c += (x*j)/p*x
+     */
+
+
 
     MPI_Finalize();
     return 0;
