@@ -49,7 +49,7 @@ void fillMatrix(int *matriz, int tamano, double f0 = 0, double f1 = 0, double f2
             for (int j = 0; j < tamano; j++) {
                 int r = rand() % 100;
                 double dv = (r + 0.0) / 100; //dividir r por 100
-                if (0 <= dv && dv <= f0) {
+                if (0 < dv && dv <= f0) {
                     matriz[i] = 0;
                 } else if (f0 < dv && dv <= (f0 + f1)) {
                     matriz[i] = 1;
@@ -210,9 +210,9 @@ int main(int argc, char **argv) {
                  << "% de area con un costo alto y " << (n2 * 100) / numHectareas
                  << "% de area con un costo razonable. ";
             if ((n0 * 100) / numHectareas < 20 && (n2 * 100) / numHectareas >= 50) {
-                cout << "Este cuadrante se puede reforestar." << endl;
+                cout << "Este cuadrante se puede reforestar.\n" << endl;
             } else {
-                cout << "Este cuadrante no se puede reforestar." << endl;
+                cout << "Este cuadrante no se puede reforestar.\n" << endl;
             }
 
             i++;
