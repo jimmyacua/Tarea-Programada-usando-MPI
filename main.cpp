@@ -1,27 +1,17 @@
 /*
  * Tarea programada 1
  * Curso: Arquitectura de computadoras
- * Estudiante: Jimmy Acuña Díaz (jimmyacuna@ucr.ac.cr)
+ * Estudiante: Jimmy Acuña Díaz (jimmy.acuna@ucr.ac.cr)
  * Carné: B50060
  */
 
 #include "mpi/mpi.h"
-//#include <math.h>
 #include <stdlib.h>
-#include <time.h>
 #include<iostream>
 
 #include <unistd.h>
 
 using namespace std;
-
-void mySum(int **v1, int **v2, int x, int y, MPI_Datatype datatype){
-    for(int i=0; i < x; i++){
-        for(int j=0; j < y; j++){
-            v1[i][j] += v2[i][j];
-        }
-    }
-}
 
 int getMaxDiv(int p) {
     //busca el max comun divisor
@@ -38,61 +28,65 @@ int getMaxDiv(int p) {
 
 int getAreaTotal(int tamano) {
     int area = tamano * tamano;
-    //cout <<"El area total es : " <<  area << endl;
     return area;
 }
 
 int getCuadrantes(int maxdiv) {
     int numCuadrantes = maxdiv * maxdiv;
-    //cout << "Numero de cuadrantes: " << numCuadrantes << endl;
     return numCuadrantes;
 }
 
-void fillMatrix(int **matriz, int tamano, double f0 = 0, double f1=0, double f2=0) {
+void fillMatrix(int *matriz, int tamano, double f0 = 0, double f1 = 0, double f2 = 0) {
     srand(time(NULL));
-    if(f0 == 0 && f1 == 0 && f2 == 0){
+    if (f0 == 0 && f1 == 0 && f2 == 0) {
         for (int i = 0; i < tamano; i++) {
             for (int j = 0; j < tamano; j++) {
-                matriz[i][j] = rand() % 3;
+                matriz[i] = rand() % 3;
             }
         }
     } else {
         for (int i = 0; i < tamano; i++) {
             for (int j = 0; j < tamano; j++) {
                 int r = rand() % 100;
-                //cout <<"primer r: "<< r << endl;
-                double dv = (r+0.0)/100; //dividir r por 100
-                //cout <<"dv es: " << dv << endl;
-                //usleep(3000000);
-
-                if(0<=dv && dv<=f0){
-                    //cout << "dv por primer if" << endl;
-                    matriz[i][j] = 0;
-                } else if(f0<dv && dv<=(f0+f1)){
-                    //cout << "dv por segundo if" << endl;
-                    matriz[i][j] = 1;
-                } else if((f1+f0)<dv){
-                    //cout << "v por tercer if" << endl;
-                    matriz[i][j] = 2;
+                double dv = (r + 0.0) / 100; //dividir r por 100
+                if (0 <= dv && dv <= f0) {
+                    matriz[i] = 0;
+                } else if (f0 < dv && dv <= (f0 + f1)) {
+                    matriz[i] = 1;
+                } else if ((f1 + f0) < dv) {
+                    matriz[i] = 2;
                 }
             }
         }
     }
 }
 
+void printMatrix(int *matrix, int size, int column) {
+    cout << "La matriz es la siguiente:" << endl;
+    for (int i = 0; i < size; i++) {
+        if (i % column == 0 && i != 0) {
+            cout << endl;
+        }
+        cout << matrix[i] << " ";
+    }
+    cout << endl;
+}
 
 int main(int argc, char **argv) {
-    int p = 0, myid, numprocs;
-    //double startwtime, endwtime;
-    int namelen, tamano, numCerosG, numUnosG, numDosG;
+    int myid, numprocs;
+    int namelen, tamano = 0, numCerosG = 0, numUnosG = 0, numDosG = 0;
     char processor_name[MPI_MAX_PROCESSOR_NAME];
-    int stripSize;
+    int stripSize = 0;
     int **matriz;
     int **filaLocal, *data, *stripdata, *datalocal, *dataGlobal;
     MPI_Datatype strip;
-    int numHectareas;
+    int numHectareas = 0;
     int **datosLocales, **datosGlobales;
-    int maxdiv;
+    int maxdiv = 0;
+    int *vector = 0;
+    int *vectorLocal = 0;
+    int *results = 0;
+    int *resultadosParciales = 0;
 
     /*  Se inicia el trabajo con MPI */
     MPI_Init(&argc, &argv);
@@ -107,40 +101,46 @@ int main(int argc, char **argv) {
     proceso actual, y en namelen la longitud de este */
     MPI_Get_processor_name(processor_name, &namelen);
 
+    maxdiv = getMaxDiv(numprocs);
+    tamano = numprocs * maxdiv;
+    stripSize = tamano * tamano / numprocs;
+
+    numHectareas = numprocs * numprocs;
+
     if (myid == 0) {
-        p = numprocs;
-        maxdiv = getMaxDiv(p);
-        tamano = p * maxdiv;
-
-        stripSize = tamano / p;
-
-        numHectareas = p*p;
-
-        cout << "El area es: " << getAreaTotal(tamano) << endl;
+        //vector = new int[tamano*tamano];
+        vector = (int *) malloc((tamano * tamano) * (sizeof(int))); //reserva memoria para la matriz
+        //inicializar matriz
+        for (int i = 0; i < tamano * tamano; i++) {
+            vector[i] = 0;
+        }
+        cout << "El area es: " << getAreaTotal(tamano) * 10000 << " mts" << endl;
+        cout << "El area en numero de hectareas es: " << getAreaTotal(tamano) << endl;
         cout << "Numero de cuadrantes: " << getCuadrantes(maxdiv) << endl;
         cout << "Total de hectareas por cuadrante: " << numHectareas << endl;
 
         //genera la matriz
-        data = (int *) malloc(sizeof(int) * tamano * tamano);
+        /*data = (int *) malloc(sizeof(int) * tamano * tamano);
         matriz = (int **) malloc(sizeof(int *) * tamano);
         for (int i = 0; i < tamano; i++) {
             matriz[i] = &(data[i * tamano]);
-        }
+        }*/
+
 
         cout << "Generando la matriz..." << endl;
 
-        fillMatrix(matriz, tamano);
-        numCerosG, numUnosG, numDosG = 0;
+        fillMatrix(vector, tamano * tamano);
+        //numCerosG, numUnosG, numDosG = 0;
 
-        cout << "La matriz es la siguiente:" << endl;
-        for (int i = 0; i < tamano; i++) {
+        printMatrix(vector, tamano * tamano, tamano);
+        /*for (int i = 0; i < tamano; i++) {
             for (int j = 0; j < tamano; j++) {
                 cout << matriz[i][j] << " ";
             }
             cout << endl;
-        }
+        }*/
 
-        int numCuad = getCuadrantes(maxdiv);
+        //int numCuad = getCuadrantes(maxdiv);
 
 
         /*for(int i=0; i<numCuad; i++){
@@ -151,26 +151,150 @@ int main(int argc, char **argv) {
         }*/
     }
 
-    //broadcasting el tamaño de los lados y el tamaño de cada vector
-    MPI_Bcast(&tamano, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&stripSize, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-    //broadcasting del max comun divisor
-    MPI_Bcast(&maxdiv, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-
-    //se crea un tipo para pasar la matriz
-    MPI_Type_vector(stripSize, tamano, tamano, MPI_INT, &strip);
-    MPI_Type_commit(&strip);
-
-    stripdata = (int *) malloc(sizeof(int) * stripSize * tamano);
-    filaLocal = (int **) malloc(sizeof(int *) * stripSize);
-    for (int i = 0; i < stripSize; i++) {
-        filaLocal[i] = &(stripdata[i * tamano]);
+    vectorLocal = (int *) malloc((tamano * maxdiv) * (sizeof(int)));
+    for (int i = 0; i < tamano * maxdiv; i++) {
+        vectorLocal[i] = 0;
     }
-    MPI_Scatter(data, 1, strip, &(filaLocal[0][0]), 1, strip, 0, MPI_COMM_WORLD);
 
-    //MPI_Barrier(MPI_COMM_WORLD);
+    int nc = getCuadrantes(maxdiv);
+    resultadosParciales = (int *) malloc((nc * 3) * (sizeof(int)));
+    for (int i = 0; i < nc * 3; i++) {
+        resultadosParciales[i] = 0;
+    }
+
+    /*if(myid == 0){
+        cout << "Resultados parciales " << endl;
+        for(int i=0; i<nc*3; i++){
+            if(i!=0 && i%3==0){
+                cout << endl;
+            }
+            cout << resultadosParciales[i] << " ";
+        }
+        cout << endl;
+    }*/
+
+    results = (int *) malloc((nc * 3) * (sizeof(int)));
+    for (int i = 0; i < nc * 3; i++) {
+        results[i] = 0;
+    }
+
+    /*if(myid == 0){
+        cout << "vector local" << endl;
+        for(int i=0; i<nc*3; i++){
+            if(i%3 == 0 && i != 0){
+                cout << endl;
+            }
+            cout << vectorLocal[i] << " ";
+        }
+        cout << endl;
+    }*/
+
+    MPI_Scatter(vector, stripSize, MPI_INT, vectorLocal, stripSize, MPI_INT, 0, MPI_COMM_WORLD);
+
+    /*if(myid == 0) {
+        cout << "vector local " << endl;
+        for (int i = 0; i < stripSize; i++) {
+            if (i != 0 && i % 18 == 0) {
+                cout << endl;
+            }
+            cout << vectorLocal[i] << " ";
+        }
+        cout << endl;
+    }*/
+
+    int pos = 0;
+    int temp[maxdiv][tamano];
+
+    for (int i = 0; i < maxdiv; i++) {
+        for (int j = 0; j < tamano; j++) {
+            temp[i][j] = vectorLocal[pos];
+            pos++;
+        }
+    }
+
+    /*if(myid == 5){
+        cout << "temporal" << endl;
+        for(int i=0; i< maxdiv; i++){
+            for(int j=0; j<tamano; j++){
+                cout << temp[i][j] << " ";
+            }
+            cout << endl;
+        }
+    }*/
+
+
+
+    int c = myid * ((numprocs * maxdiv * numprocs * maxdiv) / numprocs) /
+            (((numprocs * maxdiv * numprocs * maxdiv)) / maxdiv);
+    c = c * maxdiv;
+    /*if (myid == 5) {
+        cout << "c: " << c  << endl;
+    }*/
+    // cout << "c: " << c << endl;
+    int cp = 0;
+    for (int i = 0; i < stripSize; i++) {
+        cp = (i % tamano);
+        cp = cp / numprocs;
+        cp = (cp + c) * 3;
+        /*if (myid == 5) {
+            cout << "c: " << c << " cp: " << cp  << " y i: " << i << " y hay un: " << vectorLocal[i] << endl;
+        }*/
+        //cout << "cp : " << cp << endl;
+        if (vectorLocal[i] == 0) {
+            resultadosParciales[cp] += 1;
+        }
+        if (vectorLocal[i] == 1) {
+            resultadosParciales[cp + 1] += 1;
+        }
+        if (vectorLocal[i] == 2) {
+            resultadosParciales[cp + 2] += 1;
+        }
+    }
+
+    MPI_Reduce(resultadosParciales, results, nc * 3, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+
+    if (myid == 0) {
+        cout << "Resultados finales " << endl;
+        for (int i = 0; i < nc * 3; i++) {
+            if (i != 0 && i % 3 == 0) {
+                cout << endl;
+            }
+            cout << results[i] << " ";
+        }
+        cout << endl;
+    }
+
+    /*if (myid == 5) {
+        cout << "Resultados parciales " << endl;
+        for (int i = 0; i < nc * 3; i++) {
+            if (i != 0 && i % 3 == 0) {
+                cout << endl;
+            }
+            cout << resultadosParciales[i] << " ";
+        }
+        cout << endl;
+    }*/
+
+    /*if(myid == 0){
+        cout << "vector local 0 " << endl;
+        for(int i=0; i<tamano*3; i++){
+            if(i%tamano == 0 && i != 0){
+                cout << endl;
+            }
+            cout << vectorLocal[i] << " ";
+        }
+        cout << endl;
+    }*/
+    /*if(myid == 1){
+        cout << "vector local 1 " << endl;
+        for(int i=0; i<tamano*3; i++){
+            if(i%tamano == 0 && i != 0){
+                cout << endl;
+            }
+            cout << vectorLocal[i] << " ";
+        }
+        cout << endl;
+    }*/
 
     /*for(int i = 0; i < stripSize; i++) {
         if(i == 0) {
@@ -182,144 +306,20 @@ int main(int argc, char **argv) {
         printf("\n");
     }*/
 
-    if (myid == 0) {
-        //mientras encuentro la formula de los cuadrantes
-        for (int i = 0; i < tamano; i++) {
-            for (int j = 0; j < tamano; j++) {
-                if (matriz[i][j] == 0) {
-                    numCerosG++;
-                } else if (matriz[i][j] == 1) {
-                    numUnosG++;
-                } else {
-                    numDosG++;
-                }
-            }
-        }
 
-        int numHecTotales = numHectareas*getCuadrantes(getMaxDiv(p));
+    /*cout << "La cantidad de ceros es: " << numCerosG << " , aprox " << (double)(100 * numCerosG)/numHecTotales << "%" << endl;
+    cout << "La cantidad de unos es: " << numUnosG << " , aprox " << (double)(100 * numUnosG)/numHecTotales << "%" << endl;
+    cout << "La cantidad de dos es: " << numDosG << " , aprox " <<  (double)(100 * numDosG)/numHecTotales << "%" << endl;
 
-        /*cout << "La cantidad de ceros es: " << numCerosG << " , aprox " << (double)(100 * numCerosG)/numHecTotales << "%" << endl;
-        cout << "La cantidad de unos es: " << numUnosG << " , aprox " << (double)(100 * numUnosG)/numHecTotales << "%" << endl;
-        cout << "La cantidad de dos es: " << numDosG << " , aprox " <<  (double)(100 * numDosG)/numHecTotales << "%" << endl;
-
-        if((double)(100 * numCerosG)/numHecTotales > 50){
-            cout << "El costo por reforestar es muy alto. No se obtiene el beneficio" << endl;
-        } else if((double)(100 * numDosG)/numHecTotales == 100){
-            cout << "El costo por reforestar el bosque será gratuito." << endl;
-        } else {
-            cout << "Se obtiene el beneficio, pero no será gratuito." << endl;
-        }*/
-
+    if((double)(100 * numCerosG)/numHecTotales > 50){
+        cout << "El costo por reforestar es muy alto. No se obtiene el beneficio" << endl;
+    } else if((double)(100 * numDosG)/numHecTotales == 100){
+        cout << "El costo por reforestar el bosque será gratuito." << endl;
+    } else {
+        cout << "Se obtiene el beneficio, pero no será gratuito." << endl;
     }
 
-    /*if(myid == 1){
-        for(int i = 0; i < stripSize; i++) {
-            for(int j = 0; j < tamano; j++) {
-                cout << filaLocal[i][j] << " ";
-            }
-            printf("\n");
-        }
-    }*/
-
-
-    int x = maxdiv;
-    int c = myid * ((numprocs*x * numprocs*x) / numprocs) / (((numprocs*x * numprocs*x)) / x);
-    c = c*x;
-    int nc = getCuadrantes(x);
-
-    //genera la matriz local
-    datalocal = (int *) malloc(sizeof(int) * nc * 3); //filas * columnas
-    datosLocales = (int **) malloc(sizeof(int *) * nc);
-    for (int i = 0; i < nc; i++) {
-        datosLocales[i] = &(datalocal[i * 3]);
-    }
-    for(int i=0; i < nc; i++){
-        for(int j = 0; j<3; j++){
-            datosLocales[i][j] = 0;
-        }
-    }
-
-    //genera la matriz de datos finales
-    /*dataGlobal = (int *) malloc(sizeof(int) * nc * 3); //filas * columnas
-    datosGlobales = (int **) malloc(sizeof(int *) * nc);
-    for (int i = 0; i < nc; i++) {
-        datosGlobales[i] = &(dataGlobal[i * 3]);
-    }
-
-    for(int i=0; i < nc; i++){
-        for(int j = 0; j<3; j++){
-            datosGlobales[i][j] = 0;
-        }
-    }*/
-
-    for(int i = 0; i< stripSize; i++){
-        for(int j=0; j < tamano; j++){
-            //cout << "i: " << i << " j: " << j << endl;
-            int y = 0;
-            if(filaLocal[i][j] == 0){
-                y = ((x*j)/tamano);
-                y = y+c;
-                //cout << "AQUI SE CAE myId " << myid << " p: " << numprocs << " x: " << x << " c: " << c << " y: " << y << endl;
-                datosLocales[y][0] +=1;
-            } else if(filaLocal[i][j] == 1){
-                y = ((x*j)/tamano);
-                y = y+c;
-                //cout << "AQUI SE CAE myId " << myid << " p: " << numprocs << " x: " << x << " c: " << c << " y: " << y << endl;
-                datosLocales[y][1] +=1;
-            } else if(filaLocal[i][j] == 2){
-                y = ((x*j)/tamano);
-                y = y+c;
-                //cout << "AQUI SE CAE myId " << myid << " p: " << numprocs << " x: " << x << " c: " << c << " y: " << y << endl;
-                datosLocales[y][2] +=1;
-            }
-        }
-    }
-
-    MPI_Op diagSum;
-    MPI_Op_create( (MPI_User_function *)mySum, 1, &diagSum );
-
-    MPI_Reduce(&(datosLocales[0][0]), &(datosGlobales[0][0]), 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
-    for(int i=0; i<nc; i++){
-        for(int j = 0; j<3; j++){
-            cout << datosGlobales[i][j] << " ";
-        }
-        cout << endl;
-        if(i == nc-1){
-            cout << "------------------------------------------" << endl;
-        }
-    }
-
-
-
-    /*if(myid == 0){
-        cout << "------------------------------------------" << endl;
-        for(int i=0; i<nc; i++){
-            for(int j = 0; j<3; j++){
-                cout << datosLocales[i][j] << " ";
-            }
-            cout << endl;
-            if(i == nc-1){
-                cout << "------------------------------------------" << endl;
-            }
-        }
-    }*/
-
-
-
-
-
-    /*
-     * Formula:
-     * p: procesos, x: max com div
-     * c = myid * ((p*x * p*x) / p) / (((p*x * p*x)) / x);
-     * c = c*x;
-     *  c += (x*j)/p*x
-     *  -----------------------------------
-     *  de matriz a vector:
-     *  n*i+j
-     */
-
-
+}*/
 
     MPI_Finalize();
     return 0;
