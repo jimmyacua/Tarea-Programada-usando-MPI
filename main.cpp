@@ -74,7 +74,7 @@ void printMatrix(int *matrix, int size, int column) {
 
 int main(int argc, char **argv) {
     int myid, numprocs;
-    int namelen, tamano = 0, numCerosG = 0, numUnosG = 0, numDosG = 0;
+    int namelen, tamano = 0;
     char processor_name[MPI_MAX_PROCESSOR_NAME];
     int stripSize = 0;
     int numHectareas = 0;
@@ -83,7 +83,8 @@ int main(int argc, char **argv) {
     int *vectorLocal = 0;
     int *results = 0;
     int *resultadosParciales = 0;
-    double f0=0, f1=0, f2=0;
+    double f0 = 0, f1 = 0, f2 = 0;
+    int numHectareasAReforestar = 0;
 
     /*  Se inicia el trabajo con MPI */
     MPI_Init(&argc, &argv);
@@ -114,24 +115,24 @@ int main(int argc, char **argv) {
         string s = "";
         cout << "¿Desea ingresar una distribución para generar la matriz (S/N)?" << endl;
         cin >> s;
-        if(s != "s" && s != "S"){
+        if (s != "s" && s != "S") {
             fillMatrix(vector, tamano * tamano);
         } else {
             bool continuar = false;
-            while(!continuar){
-                cout << "Ingrese el primer valor entre 0 y 1. Advertencia: los tres valores deben sumar 1." << endl;
+            while (!continuar) {
+                cout << "Ingrese el primer valor entre 0 y 1. ADVERTENCIA: los tres valores deben sumar 1." << endl;
                 cin >> f0;
-                cout << "Ingrese el segundo valor entre 0 y 1. Advertencia: los tres valores deben sumar 1." << endl;
+                cout << "Ingrese el segundo valor entre 0 y 1. ADVERTENCIA: los tres valores deben sumar 1." << endl;
                 cin >> f1;
-                cout << "Ingrese el tercer valor entre 0 y 1. Advertencia: los tres valores deben sumar 1." << endl;
+                cout << "Ingrese el tercer valor entre 0 y 1. ADVERTENCIA: los tres valores deben sumar 1." << endl;
                 cin >> f2;
-                if(f0+f1+f2 == 1.0){
+                if (f0 + f1 + f2 == 1.0) {
                     continuar = true;
-                } else{
+                } else {
                     cout << "Los tres valores deben sumar 1. Intente otra vez." << endl;
                 }
             }
-            fillMatrix(vector, tamano * tamano, f0,f1,f2);
+            fillMatrix(vector, tamano * tamano, f0, f1, f2);
         }
 
         cout << "Generando la matriz..." << endl;
@@ -196,30 +197,43 @@ int main(int argc, char **argv) {
     MPI_Reduce(resultadosParciales, results, nc * 3, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
 
     if (myid == 0) {
-        if (myid == 0) {
-            int i = 0;
-            int j = 0;
-            while (i < nc && j < stripSize) {
-                int n0 = 0, n1 = 0, n2 = 0;
-                n0 = results[j];
-                n1 = results[j + 1];
-                n2 = results[j + 2];
-                cout << "Para el cuadrante numero " << i << " hay " << (n0 * 100) / numHectareas
-                     << "% de area que representa una gran inversión para reforestar, tiene "
-                     << (n1 * 100) / numHectareas
-                     << "% de area con un costo alto y " << (n2 * 100) / numHectareas
-                     << "% de area con un costo razonable. ";
-                if((n0 * 100) / numHectareas<=20 && (n2 * 100) / numHectareas>=50){
-                    cout << "Este cuadrante se puede reforestar." << endl;
-                } else{
-                    cout << "Este cuadrante no se puede reforestar." << endl;
-                }
+        int i = 0;
+        int j = 0;
+        while (i < nc && j < stripSize) {
+            int n0 = 0, n1 = 0, n2 = 0;
+            n0 = results[j];
+            n1 = results[j + 1];
+            n2 = results[j + 2];
+            cout << "Para el cuadrante numero " << i << " hay " << (n0 * 100) / numHectareas
+                 << "% de area que representa una gran inversión para reforestar, tiene "
+                 << (n1 * 100) / numHectareas
+                 << "% de area con un costo alto y " << (n2 * 100) / numHectareas
+                 << "% de area con un costo razonable. ";
+            if ((n0 * 100) / numHectareas < 20 && (n2 * 100) / numHectareas >= 50) {
+                cout << "Este cuadrante se puede reforestar." << endl;
+            } else {
+                cout << "Este cuadrante no se puede reforestar." << endl;
+            }
 
-                i++;
-                j += 3;
+            i++;
+            j += 3;
+        }
+        for(int r=0; r<tamano*tamano; r++){
+            if(vector[r] == 2){ //hectarea que se puede reforestar a un costo razonable
+                numHectareasAReforestar +=1;
             }
         }
 
+        double porcHectRef = (100*numHectareasAReforestar)/getAreaTotal(tamano);
+        cout << "Numero de hectareas que se pueden reforestar: " << numHectareasAReforestar <<
+        ", lo que representa el " << porcHectRef << "% de las hectareas totales" << endl;
+        if(porcHectRef == 100){
+            cout << "Por lo tanto, el costo de la reforestacion es 0." << endl;
+        } else if(porcHectRef >= 50){
+            cout << "Por lo tanto, se obtiene un beneficio en el costo." << endl;
+        } else {
+            cout << "Por lo tanto, no se obtiene el beneficio." << endl;
+        }
     }
 
     MPI_Finalize();
