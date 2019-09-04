@@ -77,16 +77,13 @@ int main(int argc, char **argv) {
     int namelen, tamano = 0, numCerosG = 0, numUnosG = 0, numDosG = 0;
     char processor_name[MPI_MAX_PROCESSOR_NAME];
     int stripSize = 0;
-    int **matriz;
-    int **filaLocal, *data, *stripdata, *datalocal, *dataGlobal;
-    MPI_Datatype strip;
     int numHectareas = 0;
-    int **datosLocales, **datosGlobales;
     int maxdiv = 0;
     int *vector = 0;
     int *vectorLocal = 0;
     int *results = 0;
     int *resultadosParciales = 0;
+    double f0=0, f1=0, f2=0;
 
     /*  Se inicia el trabajo con MPI */
     MPI_Init(&argc, &argv);
@@ -108,47 +105,42 @@ int main(int argc, char **argv) {
     numHectareas = numprocs * numprocs;
 
     if (myid == 0) {
-        //vector = new int[tamano*tamano];
         vector = (int *) malloc((tamano * tamano) * (sizeof(int))); //reserva memoria para la matriz
         //inicializar matriz
         for (int i = 0; i < tamano * tamano; i++) {
             vector[i] = 0;
         }
-        cout << "El area es: " << getAreaTotal(tamano) * 10000 << " mts" << endl;
+
+        string s = "";
+        cout << "¿Desea ingresar una distribución para generar la matriz (S/N)?" << endl;
+        cin >> s;
+        if(s != "s" && s != "S"){
+            fillMatrix(vector, tamano * tamano);
+        } else {
+            bool continuar = false;
+            while(!continuar){
+                cout << "Ingrese el primer valor entre 0 y 1. Advertencia: los tres valores deben sumar 1." << endl;
+                cin >> f0;
+                cout << "Ingrese el segundo valor entre 0 y 1. Advertencia: los tres valores deben sumar 1." << endl;
+                cin >> f1;
+                cout << "Ingrese el tercer valor entre 0 y 1. Advertencia: los tres valores deben sumar 1." << endl;
+                cin >> f2;
+                if(f0+f1+f2 == 1.0){
+                    continuar = true;
+                } else{
+                    cout << "Los tres valores deben sumar 1. Intente otra vez." << endl;
+                }
+            }
+            fillMatrix(vector, tamano * tamano, f0,f1,f2);
+        }
+
+        cout << "Generando la matriz..." << endl;
+        printMatrix(vector, tamano * tamano, tamano);
+
+        cout << "El area es: " << numHectareas * 10000 << " mts" << endl;
         cout << "El area en numero de hectareas es: " << getAreaTotal(tamano) << endl;
         cout << "Numero de cuadrantes: " << getCuadrantes(maxdiv) << endl;
         cout << "Total de hectareas por cuadrante: " << numHectareas << endl;
-
-        //genera la matriz
-        /*data = (int *) malloc(sizeof(int) * tamano * tamano);
-        matriz = (int **) malloc(sizeof(int *) * tamano);
-        for (int i = 0; i < tamano; i++) {
-            matriz[i] = &(data[i * tamano]);
-        }*/
-
-
-        cout << "Generando la matriz..." << endl;
-
-        fillMatrix(vector, tamano * tamano);
-        //numCerosG, numUnosG, numDosG = 0;
-
-        printMatrix(vector, tamano * tamano, tamano);
-        /*for (int i = 0; i < tamano; i++) {
-            for (int j = 0; j < tamano; j++) {
-                cout << matriz[i][j] << " ";
-            }
-            cout << endl;
-        }*/
-
-        //int numCuad = getCuadrantes(maxdiv);
-
-
-        /*for(int i=0; i<numCuad; i++){
-            for(int j = 0; j<3; j++){
-                cout << datosLocales[i][j] << " ";
-            }
-            cout << endl;
-        }*/
     }
 
     vectorLocal = (int *) malloc((tamano * maxdiv) * (sizeof(int)));
@@ -162,45 +154,13 @@ int main(int argc, char **argv) {
         resultadosParciales[i] = 0;
     }
 
-    /*if(myid == 0){
-        cout << "Resultados parciales " << endl;
-        for(int i=0; i<nc*3; i++){
-            if(i!=0 && i%3==0){
-                cout << endl;
-            }
-            cout << resultadosParciales[i] << " ";
-        }
-        cout << endl;
-    }*/
 
     results = (int *) malloc((nc * 3) * (sizeof(int)));
     for (int i = 0; i < nc * 3; i++) {
         results[i] = 0;
     }
 
-    /*if(myid == 0){
-        cout << "vector local" << endl;
-        for(int i=0; i<nc*3; i++){
-            if(i%3 == 0 && i != 0){
-                cout << endl;
-            }
-            cout << vectorLocal[i] << " ";
-        }
-        cout << endl;
-    }*/
-
     MPI_Scatter(vector, stripSize, MPI_INT, vectorLocal, stripSize, MPI_INT, 0, MPI_COMM_WORLD);
-
-    /*if(myid == 0) {
-        cout << "vector local " << endl;
-        for (int i = 0; i < stripSize; i++) {
-            if (i != 0 && i % 18 == 0) {
-                cout << endl;
-            }
-            cout << vectorLocal[i] << " ";
-        }
-        cout << endl;
-    }*/
 
     int pos = 0;
     int temp[maxdiv][tamano];
@@ -212,34 +172,16 @@ int main(int argc, char **argv) {
         }
     }
 
-    /*if(myid == 5){
-        cout << "temporal" << endl;
-        for(int i=0; i< maxdiv; i++){
-            for(int j=0; j<tamano; j++){
-                cout << temp[i][j] << " ";
-            }
-            cout << endl;
-        }
-    }*/
-
-
-
     int c = myid * ((numprocs * maxdiv * numprocs * maxdiv) / numprocs) /
             (((numprocs * maxdiv * numprocs * maxdiv)) / maxdiv);
     c = c * maxdiv;
-    /*if (myid == 5) {
-        cout << "c: " << c  << endl;
-    }*/
-    // cout << "c: " << c << endl;
+
     int cp = 0;
     for (int i = 0; i < stripSize; i++) {
         cp = (i % tamano);
         cp = cp / numprocs;
         cp = (cp + c) * 3;
-        /*if (myid == 5) {
-            cout << "c: " << c << " cp: " << cp  << " y i: " << i << " y hay un: " << vectorLocal[i] << endl;
-        }*/
-        //cout << "cp : " << cp << endl;
+
         if (vectorLocal[i] == 0) {
             resultadosParciales[cp] += 1;
         }
@@ -254,72 +196,31 @@ int main(int argc, char **argv) {
     MPI_Reduce(resultadosParciales, results, nc * 3, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
 
     if (myid == 0) {
-        cout << "Resultados finales " << endl;
-        for (int i = 0; i < nc * 3; i++) {
-            if (i != 0 && i % 3 == 0) {
-                cout << endl;
+        if (myid == 0) {
+            int i = 0;
+            int j = 0;
+            while (i < nc && j < stripSize) {
+                int n0 = 0, n1 = 0, n2 = 0;
+                n0 = results[j];
+                n1 = results[j + 1];
+                n2 = results[j + 2];
+                cout << "Para el cuadrante numero " << i << " hay " << (n0 * 100) / numHectareas
+                     << "% de area que representa una gran inversión para reforestar, tiene "
+                     << (n1 * 100) / numHectareas
+                     << "% de area con un costo alto y " << (n2 * 100) / numHectareas
+                     << "% de area con un costo razonable. ";
+                if((n0 * 100) / numHectareas<=20 && (n2 * 100) / numHectareas>=50){
+                    cout << "Este cuadrante se puede reforestar." << endl;
+                } else{
+                    cout << "Este cuadrante no se puede reforestar." << endl;
+                }
+
+                i++;
+                j += 3;
             }
-            cout << results[i] << " ";
         }
-        cout << endl;
+
     }
-
-    /*if (myid == 5) {
-        cout << "Resultados parciales " << endl;
-        for (int i = 0; i < nc * 3; i++) {
-            if (i != 0 && i % 3 == 0) {
-                cout << endl;
-            }
-            cout << resultadosParciales[i] << " ";
-        }
-        cout << endl;
-    }*/
-
-    /*if(myid == 0){
-        cout << "vector local 0 " << endl;
-        for(int i=0; i<tamano*3; i++){
-            if(i%tamano == 0 && i != 0){
-                cout << endl;
-            }
-            cout << vectorLocal[i] << " ";
-        }
-        cout << endl;
-    }*/
-    /*if(myid == 1){
-        cout << "vector local 1 " << endl;
-        for(int i=0; i<tamano*3; i++){
-            if(i%tamano == 0 && i != 0){
-                cout << endl;
-            }
-            cout << vectorLocal[i] << " ";
-        }
-        cout << endl;
-    }*/
-
-    /*for(int i = 0; i < stripSize; i++) {
-        if(i == 0) {
-            cout << "rank = " << myid << endl;
-        }
-        for(int j = 0; j < tamano; j++) {
-            cout << filaLocal[i][j] << " ";
-        }
-        printf("\n");
-    }*/
-
-
-    /*cout << "La cantidad de ceros es: " << numCerosG << " , aprox " << (double)(100 * numCerosG)/numHecTotales << "%" << endl;
-    cout << "La cantidad de unos es: " << numUnosG << " , aprox " << (double)(100 * numUnosG)/numHecTotales << "%" << endl;
-    cout << "La cantidad de dos es: " << numDosG << " , aprox " <<  (double)(100 * numDosG)/numHecTotales << "%" << endl;
-
-    if((double)(100 * numCerosG)/numHecTotales > 50){
-        cout << "El costo por reforestar es muy alto. No se obtiene el beneficio" << endl;
-    } else if((double)(100 * numDosG)/numHecTotales == 100){
-        cout << "El costo por reforestar el bosque será gratuito." << endl;
-    } else {
-        cout << "Se obtiene el beneficio, pero no será gratuito." << endl;
-    }
-
-}*/
 
     MPI_Finalize();
     return 0;
